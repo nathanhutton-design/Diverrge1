@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskDiverge</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    .hidden { display: none; }
+    body {
+      background:
+        radial-gradient(circle at top left, rgba(99,102,241,0.35), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(16,185,129,0.20), transparent 28%),
+        linear-gradient(135deg, #020617 0%, #0f172a 40%, #111827 100%);
+      overflow-x: hidden;
+    }
+    .blob {
+      position: absolute;
+      border-radius: 9999px;
+      filter: blur(25px);
+      opacity: 0.35;
+      animation: float 10s ease-in-out infinite;
+      pointer-events: none;
+    }
+    .blob.one { width: 220px; height: 220px; background: #6366f1; top: -40px; left: -40px; }
+    .blob.two { width: 180px; height: 180px; background: #14b8a6; bottom: 20px; right: -40px; animation-delay: -3s; }
+    .blob.three { width: 140px; height: 140px; background: #ec4899; top: 40%; right: 18%; animation-delay: -6s; }
+    @keyframes float {
+      0%,100% { transform: translateY(0px) translateX(0px) scale(1); }
+      50% { transform: translateY(-18px) translateX(10px) scale(1.06); }
+    }
+    .card-glow {
+      box-shadow: 0 0 0 1px rgba(148,163,184,0.15), 0 20px 80px rgba(0,0,0,0.45);
+      backdrop-filter: blur(16px);
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-100 font-sans">
+  <div class="relative min-h-screen flex items-center justify-center p-4">
+    <div class="blob one"></div>
+    <div class="blob two"></div>
+    <div class="blob three"></div>
+
+    <main class="w-full max-w-md bg-slate-900/75 border border-slate-700/50 rounded-3xl overflow-hidden card-glow relative z-10">
+      <header class="p-5 border-b border-slate-700/40 flex items-center justify-between bg-white/5">
+        <div>
+          <h1 class="text-2xl font-black tracking-tight text-indigo-300">TaskDiverge</h1>
+          <p class="text-[11px] uppercase tracking-[0.3em] text-slate-400">Live AI Task Paths</p>
+        </div>
+        <div class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Online</div>
+      </header>
+
+      <section id="screen-input" class="p-6 space-y-5">
+        <div class="space-y-2">
+          <div class="text-sm text-slate-300 font-medium">What is hanging over your head right now?</div>
+          <p class="text-sm text-slate-400">Type the thing you keep avoiding, and I’ll turn it into 3 easy paths.</p>
+        </div>
+
+        <div class="rounded-2xl p-4 bg-slate-950/70 border border-slate-700/50">
+          <textarea id="task-input" rows="5" class="w-full bg-transparent outline-none text-slate-100 placeholder-slate-500 resize-none" placeholder="Example: I need to clean my room but it feels impossible..."></textarea>
+        </div>
+
+        <button id="btn-submit" class="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-500 hover:to-fuchsia-500 font-bold shadow-lg shadow-indigo-900/40 transition active:scale-[0.98]">
+          Analyze & Adapt Task
+        </button>
+
+        <div class="grid grid-cols-3 gap-3 pt-2">
+          <div class="rounded-2xl p-3 bg-white/5 border border-white/10 text-center">
+            <div class="text-xl">⚡</div>
+            <div class="text-[11px] text-slate-400 mt-1">Quick steps</div>
+          </div>
+          <div class="rounded-2xl p-3 bg-white/5 border border-white/10 text-center">
+            <div class="text-xl">🎮</div>
+            <div class="text-[11px] text-slate-400 mt-1">Game mode</div>
+          </div>
+          <div class="rounded-2xl p-3 bg-white/5 border border-white/10 text-center">
+            <div class="text-xl">🧩</div>
+            <div class="text-[11px] text-slate-400 mt-1">Side quest</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="screen-loading" class="hidden p-10 text-center">
+        <div class="mx-auto w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        <h2 class="mt-6 text-xl font-bold">Connecting to Live AI...</h2>
+        <p class="mt-2 text-sm text-slate-400">Turning your task into 3 paths.</p>
+      </section>
+
+      <section id="screen-choices" class="hidden p-6 space-y-4 max-h-[540px] overflow-y-auto">
+        <h2 class="text-xl font-bold">Choose your path forward</h2>
+        <div id="choices-container" class="space-y-3"></div>
+      </section>
+
+      <section id="screen-action" class="hidden p-6 space-y-5">
+        <button id="btn-back" class="text-sm text-slate-300 hover:text-white bg-white/5 border border-white/10 rounded-xl px-3 py-2">← Back to choices</button>
+        <h2 id="action-title" class="text-2xl font-black text-white"></h2>
+        <div id="steps-container" class="space-y-3"></div>
+
+        <button id="btn-stuck" class="w-full py-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-slate-200 font-semibold">
+          💥 This path isn't working / Re-roll
+        </button>
+        <button id="btn-finish" class="hidden w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold">
+          I Broke the Freeze! 🎉
+        </button>
+      </section>
+
+      <section id="screen-celebration" class="hidden p-8 text-center">
+        <div class="text-6xl">🏆</div>
+        <h2 class="mt-4 text-2xl font-black">Momentum Achieved!</h2>
+        <p class="mt-2 text-sm text-slate-400">You tricked your brain into taking the hardest step: the first one.</p>
+        <button id="btn-restart" class="mt-8 w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-600 font-bold">Tackle Something Else</button>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = 'YOUR_RENDER_URL_HERE';
+
+    const screens = {
+      input: document.getElementById('screen-input'),
+      loading: document.getElementById('screen-loading'),
+      choices: document.getElementById('screen-choices'),
+      action: document.getElementById('screen-action'),
+      celebration: document.getElementById('screen-celebration')
+    };
+
+    const taskInput = document.getElementById('task-input');
+    const btnSubmit = document.getElementById('btn-submit');
+    const choicesContainer = document.getElementById('choices-container');
+    const stepsContainer = document.getElementById('steps-container');
+    const actionTitle = document.getElementById('action-title');
+    const btnBack = document.getElementById('btn-back');
+    const btnStuck = document.getElementById('btn-stuck');
+    const btnFinish = document.getElementById('btn-finish');
+    const btnRestart = document.getElementById('btn-restart');
+
+    let loading = false;
+
+    function show(screen) {
+      Object.values(screens).forEach(s => s.classList.add('hidden'));
+      screen.classList.remove('hidden');
+    }
+
+    async function analyzeTask(task) {
+      const res = await fetch(`${API_BASE}/api/analyze-task`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Backend request failed');
+      return data;
+    }
+
+    function renderChoices(paths) {
+      choicesContainer.innerHTML = '';
+      paths.forEach(path => {
+        const card = document.createElement('button');
+        card.className = "w-full text-left p-4 rounded-2xl border border-slate-700/60 bg-white/5 hover:bg-white/10 hover:border-indigo-400/50 transition group";
+        card.innerHTML = `
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h3 class="text-lg font-bold group-hover:text-indigo-300">${path.title}</h3>
+              <p class="text-[10px] font-bold uppercase tracking-[0.28em] text-indigo-300 mt-1">${path.subtitle}</p>
+            </div>
+            <div class="text-2xl">${path.type === 'micro' ? '🪄' : path.type === 'gamified' ? '🏁' : '🧭'}</div>
+          </div>
+          <p class="mt-3 text-sm text-slate-300 leading-relaxed">${path.description}</p>
+        `;
+        card.addEventListener('click', () => openPath(path));
+        choicesContainer.appendChild(card);
+      });
+    }
+
+    function openPath(path) {
+      actionTitle.textContent = path.title;
+      stepsContainer.innerHTML = '';
+      btnFinish.classList.add('hidden');
+
+      path.steps.forEach(step => {
+        const label = document.createElement('label');
+        label.className = "flex gap-3 p-4 rounded-2xl bg-slate-950/70 border border-slate-700/50 cursor-pointer";
+        label.innerHTML = `
+          <input type="checkbox" class="step-checkbox mt-1 w-5 h-5 rounded border-slate-700 text-indigo-600 bg-slate-800">
+          <span class="text-sm text-slate-200 leading-relaxed">${step}</span>
+        `;
+        label.querySelector('input').addEventListener('change', checkDone);
+        stepsContainer.appendChild(label);
+      });
+
+      show(screens.action);
+    }
+
+    function checkDone() {
+      const boxes = document.querySelectorAll('.step-checkbox');
+      const done = Array.from(boxes).every(b => b.checked);
+      btnFinish.classList.toggle('hidden', !done);
+    }
+
+    btnSubmit.addEventListener('click', async () => {
+      if (loading) return;
+      const task = taskInput.value.trim();
+      if (!task) {
+        alert('Please type a task first.');
+        return;
+      }
+      loading = true;
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = 'Working...';
+      show(screens.loading);
+
+      try {
+        const data = await analyzeTask(task);
+        if (!data.paths || !Array.isArray(data.paths)) throw new Error('Invalid AI response');
+        renderChoices(data.paths);
+        show(screens.choices);
+      } catch (err) {
+        alert('AI Connection Error: ' + err.message);
+        show(screens.input);
+      } finally {
+        loading = false;
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = 'Analyze & Adapt Task';
+      }
+    });
+
+    btnBack.addEventListener('click', () => show(screens.choices));
+    btnStuck.addEventListener('click', () => btnSubmit.click());
+    btnFinish.addEventListener('click', () => show(screens.celebration));
+    btnRestart.addEventListener('click', () => {
+      taskInput.value = '';
+      show(screens.input);
+    });
+  </script>
+</body>
+</html>
